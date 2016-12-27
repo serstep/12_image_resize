@@ -4,7 +4,7 @@ Script image_resize.py provides to resize images.
 
 ##Using
 
-$python3 image_resize.py (--scale/-s|--width/-w --height/-i) filepath --output/-o output_filepath
+    $python3 image_resize.py (--scale/-s|--width/-w --height/-i) filepath --output/-o output_filepath
 
 scale - float property
 width, height - integer properties
