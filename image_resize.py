@@ -2,6 +2,20 @@ import argparse
 from PIL import Image
 from pathlib import PurePosixPath
 
+def get_args_coolision(args_namespace):
+    scale = args_namespace.scale
+    width = args_namespace.width
+    height = args_namespace.height
+
+    if scale is None and width is None and height is None:
+        return "--scale/-s or (--width/-w or --height/-h) required"
+        
+    if not(scale is None or (width is None and height is None)):
+        return "--scale/-s is not allowed with --width/-w or --height/-h"
+
+    return None
+        
+
 def get_args_namespace():
     argument_parser = argparse.ArgumentParser(description="Image Resize Script", usage='%(prog)s [arguments]')
     argument_parser.add_argument("--scale", "-s", type=float)
@@ -10,20 +24,14 @@ def get_args_namespace():
     argument_parser.add_argument("--output", "-o")
     argument_parser.add_argument("filepath")
 
-    args_namespace = vars(argument_parser.parse_args())
+    args_namespace = argument_parser.parse_args()
 
-    scale = args_namespace["scale"]
-    width = args_namespace["width"]
-    height = args_namespace["height"]
+    args_coolision = get_args_coolision(args_namespace)
 
-    if scale is None and width is None and height is None:
-        print("--scale/-s or (--width/-w or --height/-h) required")
+    if args_coolision is not None:
+        print(args_coolision)
         exit(1)
-
-    if not(scale is None or (width is None and height is None)):
-        print("--scale/-s is not allowed with --width/-w or --height/-h")
-        exit(1)
-
+    
     return args_namespace
 
 
@@ -39,58 +47,46 @@ def get_result_path(filepath, output_path, image):
     return "{}/{}__{}x{}{}".format(image_parent, image_name, width, height, image_extension)
 
 
-def proportion_notice(initial_size, resized_size):
-    """
-    Compare proportion of initial image an resized image.
-    Diiference in proportions compares with little constant, 
-    because result of division is float and in most of cases is less than 1.
-    """
+def compare_proportion(initial_size, resized_size):
     resized_width , resized_height = resized_size
     initial_width, initial_height = initial_size
 
-    return resized_height / resized_width - initial_height / initial_width > 0.1
-        
+    return abs(resized_height / resized_width - initial_height / initial_width) > 0.1
 
 
-def resize_image(image, args_namespace):
+def get_required_size(image, args_namespace):
 
-    scale = args_namespace['scale']
-    required_width = args_namespace['width']
-    required_height = args_namespace['height']
-    filepath = args_namespace["filepath"]
-    output_path = args_namespace["output"]
+    scale = args_namespace.scale
+    required_width = args_namespace.width
+    required_height = args_namespace.height
+    filepath = args_namespace.filepath
+    output_path = args_namespace.output
 
     width, height = image.size
 
     if scale is not None:
         required_width = int(width*scale)
         required_height = int(height*scale)
-        resized_image = image.resize((required_width, required_height))
-
-    elif required_width is not None and required_height is not None:
-        resized_image = image.resize((required_width, required_height))
 
     elif required_width is not None and required_height is None:
-        required_height = height * (required_width // width)
-        resized_image = image.resize((required_width, required_height))
+        required_height = height * required_width // width
 
     elif required_width is None and required_height is not None:
-        required_width = width * (required_height // height)
-        resized_image = image.resize((required_width, required_height))
-
+        required_width = width * required_height // height
     
-    return resized_image
+    return(required_width, required_height)
     
-
+    
 if __name__ == '__main__':
     args_namespace = get_args_namespace()
-    filepath = args_namespace["filepath"]
-    output_path = args_namespace["output"]
+    filepath = args_namespace.filepath
+    output_path = args_namespace.output
 
     image = Image.open(filepath)
-    resized_image = resize_image(image, args_namespace)
+    required_size = get_required_size(image, args_namespace)
+    resized_image = image.resize(required_size)
 
-    if proportion_notice(image.size, resized_image.size):
+    if compare_proportion(image.size, resized_image.size):
         print("Notice: the proportion of image wiil be upset.")
 
     result_image_path = get_result_path(filepath, output_path, resized_image)
